@@ -135,13 +135,14 @@ def generate_adjusted_geometry(routinedf):
     return routinedf
     
 def generate_cum_length(routinedf, linedf):
-    routinedf = routinedf.merge(linedf['base_length'], left_on='selected_line_idx', right_index=True, how='inner')
+    routinedf = routinedf.merge(linedf[['base_length', 'start_is_station', 'end_is_station', 'start', 'end']],\
+                                left_on='selected_line_idx', right_index=True, how='inner')
     
-    routinedf['cum_length'] = routinedf.apply(lambda x: x['adjusted_geometry'].\
-                                                distance(Point(x['selected_line'].coords[0]))\
-                                                + x['base_length'],
+    routinedf['cur_length'] = routinedf.apply(lambda x: x['adjusted_geometry'].\
+                                                distance(Point(x['selected_line'].coords[0])),\
                                                 axis = 1
                                             )
+    routinedf['cum_length'] = routinedf['cur_length'] + routinedf['base_length']
     # routinedf['cum_length'] = routinedf.swifter.apply(lambda x: x['adjusted_geometry'].\
     #                                             distance(Point(x['selected_line'].coords[0]))\
     #                                             + x['base_length'],
@@ -182,6 +183,20 @@ def remove_negative_row(routinedf):
             ).reset_index(drop=True)
     return routinedf
 
+def remove_negative_row_end(routinedf):
+    # routinedf = routinedf.reset_index(drop=True)
+    pre_len = 0
+    new_len = len(routinedf)
+    while (new_len != pre_len):
+        routinedf = routinedf.drop(
+                    routinedf.loc[(routinedf["diff_distance"] < 0 )].index,
+                    axis = 0
+                ).reset_index(drop=True)
+        routinedf['diff_distance'] = routinedf['cum_length'].diff()
+        pre_len = new_len
+        new_len = len(routinedf)
+    return routinedf
+
 def adjust_two(routine_row):
     # input row has diff_distance < 0 or line >0
     if routine_row['diff_distance'] >= 0:
@@ -208,9 +223,8 @@ def generate_correct_geometry(routinedf):
         pre_len = new_len
         new_len = len(routinedf)
         # print(new_len)
-
+    routinedf = remove_negative_row_end(routinedf)
     return routinedf
-
 
 def interpolate(routine_row):
     if ((routine_row['diff_distance'] > 50) or (routine_row['diff_time'] > 30)):
@@ -223,27 +237,68 @@ def interpolate(routine_row):
         b = (y0 - y1) * p 
         x2, y2 = routine_row['adjusted_geometry'].coords[0]
         new_point = Point(x2 + a, y2 + b)
-        if routine_row['selected_line'].distance(new_point) < 1e-8:
+        if not (routine_row['selected_line'].distance(new_point) < 1e-8):
+            # in this way there may be data with negative cur_length, which helps a lot !! 
+            new_point = Point(x0, y0)
+            
+        # if routine_row['selected_line'].buffer(cap_style = 2,distance = 1e-8).contains(new_point):
         # if True:
-            seconds = int(routine_row['diff_time'] / 2)
-            routine_row['time'] = routine_row['time'] - pd.Timedelta( seconds = seconds )
-            routine_row['adjusted_geometry'] = new_point
-            
-            routine_row['diff_distance'] /= 2
-            routine_row['diff_time'] /= 2
-            routine_row['cum_length'] -= routine_row['diff_distance']
-            
-            return routine_row.to_list()
+        routine_row['adjusted_geometry'] = new_point
+        routine_row['time'] -= pd.Timedelta( seconds = int(routine_row['diff_time'] / 2) )
+        routine_row['diff_distance'] /= 2
+        routine_row['diff_time'] /= 2
+        routine_row['cum_length'] -= routine_row['diff_distance']
+        routine_row['cur_length'] -= routine_row['diff_distance']
+
+        return routine_row.to_list()
 
 def generate_interpolation(routinedf):
     pre_len = 0
     new_len = len(routinedf)
     while (pre_len != new_len):
-        # print(new_len)
+        print(new_len)
         inter_val = pd.DataFrame(routinedf.apply(interpolate, axis = 1).dropna().to_list(), columns = routinedf.columns)
         routinedf = pd.concat([routinedf, inter_val],ignore_index=True).sort_values(by = 'time').reset_index(drop = True)
         routinedf['diff_time'] = routinedf['time'].diff().apply(lambda x: x.seconds)
         routinedf['diff_distance'] = routinedf['cum_length'].diff()
+        routinedf = routinedf.drop(
+                    routinedf.loc[(routinedf["diff_distance"] < 0 )].index,
+                    axis = 0
+                ).reset_index(drop=True)
         pre_len = new_len
         new_len = len(routinedf)
+    
+    return routinedf
+
+def in_station(routine_row):
+    is_low_velocity = (routine_row['velocity'] <= 8.3)
+    is_up = (routine_row['direction'] == 0)
+    case0 = (routine_row['cur_length'] > 25)
+    case1 = (routine_row['selected_line'].length - routine_row['cur_length'] > 25)
+    
+    if is_up:
+        if (routine_row['start'] == '菊园车站') and (is_low_velocity):
+            return '菊园车站'
+        elif (routine_row['end'] == '公交嘉定新城站') and (is_low_velocity):
+            return '公交嘉定新城站'
+    else:
+        if (routine_row['start'] == '公交嘉定新城站') and (is_low_velocity):
+            return '公交嘉定新城站'
+        elif (routine_row['end'] == '菊园车站') and (is_low_velocity):
+            return '菊园车站'
+        
+    if routine_row['start_is_station']:
+        if (case0):
+            return 0
+        else:
+            return routine_row['start']
+    elif routine_row['end_is_station']:
+        if (case1):
+            return 0
+        else:
+            return routine_row['end']
+    return 0
+        
+def generate_station_status(routinedf):
+    routinedf['station_status'] = routinedf.apply(in_station, axis = 1)
     return routinedf

@@ -33,13 +33,33 @@ def generate_3857_df(mapdf):
 def generate_lines(mapdf):
     geo = []
     name= []
+    start = []
+    end = []
     cur = mapdf.loc[0]
+    start_is_station = []
+    end_is_station = []
     for i in range(len(mapdf) - 1):
         nxt = mapdf.loc[i + 1]
-        geo.append(LineString([cur['geometry'], nxt['geometry']]))
-        name.append(cur['name'] + "-" + nxt['name'])
+        line = LineString([cur['geometry'], nxt['geometry']])
+        
+        station0 = cur['name']
+        station1 = nxt['name']
+        geo.append(line)
+        name.append(station0 + "-" + station1)
+        if (station0.startswith('交')):
+            start_is_station.append(False)
+        else:
+            start_is_station.append(True)
+        if (station1.startswith('交')):
+            end_is_station.append(False)
+        else:
+            end_is_station.append(True)
+        start.append(station0)
+        end.append(station1)
         cur = nxt
-    return gpd.GeoDataFrame({'name':name, 'geometry':geo})
+    return gpd.GeoDataFrame({'name':name, 'geometry':geo, 'start':start,\
+                            'end':end, 'start_is_station': start_is_station,\
+                            'end_is_station': end_is_station})
 
 def generate_buffers(linedf, width = 50):
     linedf = gpd.GeoDataFrame(linedf)
@@ -55,3 +75,4 @@ def generate_base_length(linedf):
         temp[i] += temp[i - 1]
     linedf['base_length'] = temp
     return linedf
+
