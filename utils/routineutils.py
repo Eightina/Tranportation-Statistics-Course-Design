@@ -6,20 +6,19 @@ import numpy as np
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points
 
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 # mapdf = pd.read_excel('./data/map/map_down.xlsx')
 
 # extract a single routine from the whole gpsdf
 def generate_routine(gpsdf, nidx:int, direction:int):
     # return gpsdf.set_index(['nidx','direction'],drop=False).loc[nidxdirection].reset_index(drop=True)
-    return gpsdf.loc[((gpsdf['nidx'] == nidx) & (gpsdf['direction'] == direction))]
+    return gpsdf.loc[((gpsdf['nidx'] == nidx) & (gpsdf['direction'] == direction))].reset_index(drop=True)
 
 # detect whether a point is in the sub_buffer 
 # if true then return the sub_buffer
 def point_in_buffer(routine_row, line_row, i):
     point = routine_row['geometry']
-    
     line = line_row['geometry']
     line_idx = i
 
@@ -79,7 +78,8 @@ def generate_belonging_relations(routinedf, linedf):
         #     routinedf = parallelize_dataframe(routinedf, parall_func_0, point_in_buffer, line_row, i)
         # else:
         # target_col = ('geometry', 'belong_rect_buffer', 'belong_circ_buffer', 'belong_line', 'belong_line_idx')
-        routinedf = routinedf.apply(point_in_buffer, axis = 1, args = (line_row,i))
+        tqdm.pandas(desc='generate_belonging_relations')
+        routinedf = routinedf.progress_apply(point_in_buffer, axis = 1, args = (line_row,i))
         # routinedf = routinedf.swifter.apply(point_in_buffer, axis = 1, args = (line_row,i))
         
         # routinedf["belong_rect_buffer"] += relation[0]
@@ -131,17 +131,20 @@ def generate_adjusted_geometry(routinedf):
     routinedf['selected_line_idx'] = [None for _ in range(len(routinedf))]
     routinedf['adjusted_geometry'] = [None for _ in range(len(routinedf))]
     # routinedf = routinedf.apply(adjust_one, axis = 1)
-    routinedf = routinedf.apply(adjust_one, axis = 1)
+    tqdm.pandas(desc='generate_adjusted_geometry')
+    routinedf = routinedf.progress_apply(adjust_one, axis = 1)
     
     return routinedf
     
 def generate_cum_length(routinedf, linedf):
     routinedf = routinedf.merge(linedf[['base_length', 'start_is_station', 'end_is_station', 'start', 'end']],\
                                 left_on='selected_line_idx', right_index=True, how='inner')
-    
-    routinedf['cur_length'] = routinedf.apply(lambda x: x['adjusted_geometry'].\
-                                                distance(Point(x['selected_line'].coords[0])),\
-                                                axis = 1
+
+    tqdm.pandas(desc='generate_cum_length')
+    routinedf['cur_length'] = routinedf.progress_apply(lambda x: x['adjusted_geometry'].\
+                                                distance(Point(x['selected_line'].coords[0])),
+                                                axis = 1,
+                                                result_type = 'reduce'
                                             )
     routinedf['cum_length'] = routinedf['cur_length'] + routinedf['base_length']
     # routinedf['cum_length'] = routinedf.swifter.apply(lambda x: x['adjusted_geometry'].\
@@ -175,6 +178,7 @@ def remove_negative_row(routinedf):
         new_len = len(routinedf)
 
     routinedf['diff_time'] = routinedf['time'].diff().apply(lambda x: x.seconds)
+    # routinedf.fillna(0)
     routinedf.loc[routinedf['diff_time'] > 80000, 'diff_time'] = 10
     # routinedf['velocity'] = routinedf['velocity'].swifter.apply(lambda x: x.seconds)
     routinedf['velocity'] = [0] + list(routinedf['diff_distance'][1:]/routinedf['diff_time'][1:])

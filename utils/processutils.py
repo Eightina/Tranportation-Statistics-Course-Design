@@ -38,11 +38,11 @@ def process_linedf(direction):
     return linedf
 
 def preprocess_routine(gpsdf, linedfup, linedfdown):
-    gpsdf.loc[gpsdf['direction'] == 0] = generate_belonging_relations(gpsdf, linedfup)
-    gpsdf.loc[gpsdf['direction'] == 1] = generate_belonging_relations(gpsdf, linedfdown)
+    gpsdf.loc[gpsdf['direction'] == 0] = generate_belonging_relations(gpsdf.loc[gpsdf['direction'] == 0], linedfup)
+    gpsdf.loc[gpsdf['direction'] == 1] = generate_belonging_relations(gpsdf.loc[gpsdf['direction'] == 1], linedfdown)
     gpsdf = generate_adjusted_geometry(gpsdf)
-    gpsdf.loc[gpsdf['direction'] == 0] = generate_cum_length(gpsdf, linedfup)
-    gpsdf.loc[gpsdf['direction'] == 1] = generate_cum_length(gpsdf, linedfdown)
+    gpsdf.loc[gpsdf['direction'] == 0] = generate_cum_length(gpsdf.loc[gpsdf['direction'] == 0], linedfup)
+    gpsdf.loc[gpsdf['direction'] == 1] = generate_cum_length(gpsdf.loc[gpsdf['direction'] == 1], linedfdown)
     return gpsdf
 
 # mapline = process_linedf(direction)
@@ -56,3 +56,4 @@ def process_routine(gpsdf, nidx:int, direction:int):
     routinedf = generate_interpolation(routinedf)
     routinedf = generate_station_status(routinedf)
     return routinedf
+

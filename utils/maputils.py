@@ -6,7 +6,7 @@ import numpy as np
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points
 
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 # from lat and lon generate geodataframe 
 # plus transfering coords sys
@@ -21,7 +21,8 @@ def generate_3857_df(mapdf):
     
     mapdf = gpd.GeoDataFrame(mapdf)
     # mapdf['geometry'] = [Point(_) for _ in temp_lon_lat]
-    mapdf['geometry'] = mapdf.apply(lambda x: Point(x['lon'], x['lat']), axis = 1)
+    tqdm.pandas(desc='generate_3857_df')
+    mapdf['geometry'] = mapdf.progress_apply(lambda x: Point(x['lon'], x['lat']), axis = 1)
     # mapdf['geometry'] = mapdf.swifter.apply(lambda x: Point(x['lon'], x['lat']), axis = 1)
 
     # mapdf['geometry'] = mapdf.apply(lambda x: Point(x[2], x[3]), axis = 1)
