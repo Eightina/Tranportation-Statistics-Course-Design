@@ -19,13 +19,13 @@ from utils.timeutils import time_transfer
 
 import os
 
-def get_gpsdf(filename):
+def process_gpsdf(filename):
     gpsdf = pd.read_csv('./data/gps/' + filename)
     gpsdf = time_transfer(gpsdf)
     gpsdf = generate_3857_df(gpsdf)
     return gpsdf
 
-def get_linedf(direction):
+def process_linedf(direction):
     if direction == 0:
         path = './data/map/map_up.xlsx'
     else:
@@ -37,13 +37,22 @@ def get_linedf(direction):
     linedf = generate_base_length(linedf)
     return linedf
 
-def get_processed_routine(gpsdf, nidx:int, direction:int):
-    routine = generate_routine(gpsdf, nidx = nidx, direction = direction)
-    mapline = get_linedf(direction)
-    routine = generate_belonging_relations(routine, mapline)
-    routine = generate_adjusted_geometry(routine)
-    routine = generate_cum_length(routine, mapline)
-    routine = generate_correct_geometry(routine)
-    routine = generate_interpolation(routine)
-    routine = generate_station_status(routine)
-    return routine
+def preprocess_routine(gpsdf, linedfup, linedfdown):
+    gpsdf.loc[gpsdf['direction'] == 0] = generate_belonging_relations(gpsdf, linedfup)
+    gpsdf.loc[gpsdf['direction'] == 1] = generate_belonging_relations(gpsdf, linedfdown)
+    gpsdf = generate_adjusted_geometry(gpsdf)
+    gpsdf.loc[gpsdf['direction'] == 0] = generate_cum_length(gpsdf, linedfup)
+    gpsdf.loc[gpsdf['direction'] == 1] = generate_cum_length(gpsdf, linedfdown)
+    return gpsdf
+
+# mapline = process_linedf(direction)
+
+def process_routine(gpsdf, nidx:int, direction:int):
+    routinedf = generate_routine(gpsdf, nidx = nidx, direction = direction)
+    # routine = generate_belonging_relations(routine, linedf)
+    # routine = generate_adjusted_geometry(routine)
+    # routinedf = generate_cum_length(routinedf, linedf)
+    routinedf = generate_correct_geometry(routinedf)
+    routinedf = generate_interpolation(routinedf)
+    routinedf = generate_station_status(routinedf)
+    return routinedf

@@ -6,6 +6,7 @@ import numpy as np
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points
 
+from tqdm import tqdm
 
 # from lat and lon generate geodataframe 
 # plus transfering coords sys

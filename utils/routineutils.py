@@ -1,4 +1,3 @@
-
 import pandas as pd
 
 # import modin.pandas as pd
@@ -6,6 +5,8 @@ import numpy as np
 
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points
+
+from tqdm import tqdm
 
 # mapdf = pd.read_excel('./data/map/map_down.xlsx')
 
@@ -72,7 +73,7 @@ def generate_belonging_relations(routinedf, linedf):
     
     for i in range(len(linedf)):
         # relation = pd.DataFrame([point_in_buffer(linedf, i, _) for _ in routinedf['geometry']], columns=[0, 1, 2, 3])
-        print("progress: {}".format((i+1)/(len(linedf) + 1)))
+        print("processing belonging relations: {}".format((i+1)/(len(linedf) + 1)))
         line_row = linedf.loc[i]
         # if parallelize:
         #     routinedf = parallelize_dataframe(routinedf, parall_func_0, point_in_buffer, line_row, i)
