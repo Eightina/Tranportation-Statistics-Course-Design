@@ -71,6 +71,7 @@ def generate_buffers(linedf, width = 50):
 
 def generate_base_length(linedf):
     temp = [_.length for _ in linedf['geometry']]
+    linedf['end_length'] = temp
     temp.pop()
     temp = [0] + temp
     for i in range(1, len(temp)):

@@ -6,7 +6,7 @@ import numpy as np
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points
 
-from tqdm.autonotebook import tqdm
+# from tqdm.autonotebook import tqdm
 
 # mapdf = pd.read_excel('./data/map/map_down.xlsx')
 
@@ -72,14 +72,14 @@ def generate_belonging_relations(routinedf, linedf):
     
     for i in range(len(linedf)):
         # relation = pd.DataFrame([point_in_buffer(linedf, i, _) for _ in routinedf['geometry']], columns=[0, 1, 2, 3])
-        print("processing belonging relations: {}".format((i+1)/(len(linedf) + 1)))
+        # print("processing belonging relations: {}".format((i+1)/(len(linedf) + 1)))
         line_row = linedf.loc[i]
         # if parallelize:
         #     routinedf = parallelize_dataframe(routinedf, parall_func_0, point_in_buffer, line_row, i)
         # else:
         # target_col = ('geometry', 'belong_rect_buffer', 'belong_circ_buffer', 'belong_line', 'belong_line_idx')
-        tqdm.pandas(desc='generate_belonging_relations')
-        routinedf = routinedf.progress_apply(point_in_buffer, axis = 1, args = (line_row,i))
+        # tqdm.pandas(desc='generate_belonging_relations')
+        routinedf = routinedf.apply(point_in_buffer, axis = 1, args = (line_row,i))
         # routinedf = routinedf.swifter.apply(point_in_buffer, axis = 1, args = (line_row,i))
         
         # routinedf["belong_rect_buffer"] += relation[0]
@@ -131,17 +131,17 @@ def generate_adjusted_geometry(routinedf):
     routinedf['selected_line_idx'] = [None for _ in range(len(routinedf))]
     routinedf['adjusted_geometry'] = [None for _ in range(len(routinedf))]
     # routinedf = routinedf.apply(adjust_one, axis = 1)
-    tqdm.pandas(desc='generate_adjusted_geometry')
-    routinedf = routinedf.progress_apply(adjust_one, axis = 1)
+    # tqdm.pandas(desc='generate_adjusted_geometry')
+    routinedf = routinedf.apply(adjust_one, axis = 1)
     
     return routinedf
     
 def generate_cum_length(routinedf, linedf):
-    routinedf = routinedf.merge(linedf[['base_length', 'start_is_station', 'end_is_station', 'start', 'end']],\
+    routinedf = routinedf.merge(linedf[['base_length','end_length', 'start_is_station', 'end_is_station', 'start', 'end']],\
                                 left_on='selected_line_idx', right_index=True, how='inner')
 
-    tqdm.pandas(desc='generate_cum_length')
-    routinedf['cur_length'] = routinedf.progress_apply(lambda x: x['adjusted_geometry'].\
+    # tqdm.pandas(desc='generate_cum_length')
+    routinedf['cur_length'] = routinedf.apply(lambda x: x['adjusted_geometry'].\
                                                 distance(Point(x['selected_line'].coords[0])),
                                                 axis = 1,
                                                 result_type = 'reduce'
@@ -231,38 +231,45 @@ def generate_correct_geometry(routinedf):
     routinedf = remove_negative_row_end(routinedf)
     return routinedf
 
-def interpolate(routine_row):
+def interpolate(routine_row, linedf):
     if ((routine_row['diff_distance'] > 50) or (routine_row['diff_time'] > 30)):
         # print("trying")
         # new_row = routine_row.copy(deep=True)
-        x0, y0 = routine_row['selected_line'].coords[0]
-        x1, y1 = routine_row['selected_line'].coords[1]
-        p = (routine_row['diff_distance'] / routine_row['selected_line'].length)/2
-        a = (x0 - x1) * p
-        b = (y0 - y1) * p 
-        x2, y2 = routine_row['adjusted_geometry'].coords[0]
-        new_point = Point(x2 + a, y2 + b)
-        if not (routine_row['selected_line'].distance(new_point) < 1e-8):
+        routine_row['cum_length'] -= (routine_row['diff_distance'] / 2)
+        # <= routine_row['end_length'])
+        if not (routine_row['base_length'] <= routine_row['cum_length']):
+            change_to_line = linedf.loc[routine_row['selected_line_idx'] - 1]
+            # routine_row['selected_line'] = change_to_line['geometry']
+            # routine_row['base_length'] = change_to_line['base_length']
+            # routine_row['end_length'] = change_to_line['end_length']
+            routine_row[['selected_line', 'base_length', 'end_length', 'start_is_station', 'end_is_station', 'start', 'end']] =\
+                change_to_line[['geometry', 'base_length', 'end_length','start_is_station', 'end_is_station', 'start', 'end']]
             # in this way there may be data with negative cur_length, which helps a lot !! 
-            new_point = Point(x0, y0)
-            
+            # new_point = Point(x0, y0)            
         # if routine_row['selected_line'].buffer(cap_style = 2,distance = 1e-8).contains(new_point):
         # if True:
+        x0, y0 = routine_row['selected_line'].coords[0]
+        x1, y1 = routine_row['selected_line'].coords[1]         
+        p = (routine_row['diff_distance'] / routine_row['selected_line'].length)/2
+        a = (x0 - x1) * p
+        b = (y0 - y1) * p
+        x2, y2 = routine_row['adjusted_geometry'].coords[0]
+        new_point = Point(x2 + a, y2 + b)
         routine_row['adjusted_geometry'] = new_point
         routine_row['time'] -= pd.Timedelta( seconds = int(routine_row['diff_time'] / 2) )
-        routine_row['diff_distance'] /= 2
-        routine_row['diff_time'] /= 2
-        routine_row['cum_length'] -= routine_row['diff_distance']
-        routine_row['cur_length'] -= routine_row['diff_distance']
+        # routine_row['diff_distance'] /= 2
+        # routine_row['diff_time'] /= 2
+        routine_row['cur_length'] = routine_row['cum_length'] - routine_row['base_length']
 
         return routine_row.to_list()
 
-def generate_interpolation(routinedf):
+def generate_interpolation(routinedf, linedf):
     pre_len = 0
     new_len = len(routinedf)
     while (pre_len != new_len):
         print(new_len)
-        inter_val = pd.DataFrame(routinedf.apply(interpolate, axis = 1).dropna().to_list(), columns = routinedf.columns)
+        # inter_val = pd.DataFrame(routinedf.apply(interpolate, axis = 1, args=(linedf)).dropna().to_list(), columns = routinedf.columns)
+        inter_val = routinedf.apply(interpolate, axis = 1, args=(linedf,), result_type='broadcast').dropna()
         routinedf = pd.concat([routinedf, inter_val],ignore_index=True).sort_values(by = 'time').reset_index(drop = True)
         routinedf['diff_time'] = routinedf['time'].diff().apply(lambda x: x.seconds)
         routinedf['diff_distance'] = routinedf['cum_length'].diff()
