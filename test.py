@@ -54,13 +54,13 @@ def process_linedf(direction):
 
 def process_routine(gpsdf, linedf, nidx:int, direction:int):
     routinedf = generate_routine(gpsdf, nidx = nidx, direction = direction)
-    if len(routinedf) < 30:
+    if len(routinedf) < 5:
         return pd.DataFrame()
     routinedf = generate_belonging_relations(routinedf, linedf)
     routinedf = generate_adjusted_geometry(routinedf)
     routinedf = generate_cum_length(routinedf, linedf)
     routinedf = generate_correct_geometry(routinedf)
-    routinedf = generate_interpolation(routinedf)
+    routinedf = generate_interpolation(routinedf, linedf)
     routinedf = generate_station_status(routinedf)
     return routinedf
 

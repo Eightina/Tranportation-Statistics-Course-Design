@@ -283,7 +283,7 @@ def generate_interpolation(routinedf, linedf):
     return routinedf
 
 def in_station(routine_row):
-    is_low_velocity = (routine_row['velocity'] <= 8.3)
+    is_low_velocity = (routine_row['velocity'] <= 12.5)
     is_up = (routine_row['direction'] == 0)
     case0 = (routine_row['cur_length'] > 25)
     case1 = (routine_row['selected_line'].length - routine_row['cur_length'] > 25)
