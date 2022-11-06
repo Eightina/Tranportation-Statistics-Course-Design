@@ -60,11 +60,40 @@ def process_routine(gpsdf, linedf, nidx:int, direction:int):
     routinedf = generate_station_status(routinedf)
     return routinedf
 
-def post_process(routinedf, day:int):
+def post_process(routinedf, date:int):
     routinedf = remove_negative_row_end(routinedf)
-    uplim = pd.Timestamp(dt(2021,9,day, hour=23,minute=59,second=59))
-    lolim = pd.Timestamp(dt(2021,9,day, hour=0,minute=0,second=0))
-    routinedf = routinedf.drop(routinedf.loc[(routinedf['time'] > uplim) | (routinedf['time'] < lolim)].index,
+    hilim = pd.Timestamp(dt(2021,9,date, hour=23,minute=59,second=59))
+    lolim = pd.Timestamp(dt(2021,9,date, hour=4,minute=0,second=0))
+    routinedf = routinedf.drop(routinedf.loc[(routinedf['time'] > hilim) | (routinedf['time'] < lolim)].index,
                     axis = 0
                 ).reset_index(drop=True)
     return routinedf
+
+def timetable_format(timetable_row, date:int, strict=True):
+    if strict:
+        lo_range = pd.Timedelta( minutes = 1 )
+        hi_range = pd.Timedelta( minutes = 2 )
+    else:
+        lo_range = pd.Timedelta( minutes = 1.5 )
+        hi_range = pd.Timedelta( minutes = 3 )
+        
+    start_time = timetable_row['start_time'].split(':')
+    start_time = pd.Timestamp(dt(2021,9,date, hour=int(start_time[0]),minute=int(start_time[1]),second=int(start_time[2])))
+    timetable_row['start_time'] = start_time
+    timetable_row['start_time_lolim'] = start_time - lo_range
+    timetable_row['start_time_hilim'] = start_time + hi_range
+
+    end_time = timetable_row['end_time'].split(':')
+    end_time = pd.Timestamp(dt(2021,9,date, hour=int(end_time[0]),minute=int(end_time[1]),second=int(end_time[2])))
+    timetable_row['end_time'] = end_time
+    timetable_row['end_time_lolim'] = end_time - lo_range
+    timetable_row['end_time_hilim'] = end_time + hi_range
+    return timetable_row
+
+def process_timetable(timetabledf, date:int, strict=True):
+    timetabledf['start_time_lolim'] = [None for _ in range(len(timetabledf))]
+    timetabledf['start_time_hilim'] = [None for _ in range(len(timetabledf))]
+    timetabledf['end_time_lolim'] = [None for _ in range(len(timetabledf))]
+    timetabledf['end_time_hilim'] = [None for _ in range(len(timetabledf))]
+    timetabledf = timetabledf.apply(timetable_format, args=(date, strict,), axis = 1)
+    return timetabledf
