@@ -3,20 +3,20 @@ import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
 
-from utils.processing_utils import process_gpsdf, process_routine, process_linedf
+from myutils.process_utils import process_gpsdf, process_routine, process_linedf
 
 filename_list = [
                     'gps_0906.csv',
-                    'gps_0907.csv',
-                    'gps_0908.csv',
-                    'gps_0909.csv',
-                    'gps_0910.csv',
+                    # 'gps_0907.csv',
+                    # 'gps_0908.csv',
+                    # 'gps_0909.csv',
+                    # 'gps_0910.csv',
                 ]
 # filename_list = ['gps_0906.csv']
 mapline_up = process_linedf(0)
 mapline_down = process_linedf(1)
 # print()
-cnt = 9
+cnt = 6
 for filename in filename_list:
     # gps = process_gpsdf(filename)
     gps = process_gpsdf(filename)

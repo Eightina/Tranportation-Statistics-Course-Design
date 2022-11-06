@@ -1,15 +1,18 @@
 import pandas as pd
 
-from utils.map_utils import generate_3857_df, generate_lines,\
+from myutils.map_utils import generate_3857_df, generate_lines,\
                             generate_buffers,generate_base_length\
 
-from utils.routine_utils import generate_routine, generate_adjusted_geometry,\
+from myutils.routine_utils import generate_routine, generate_adjusted_geometry,\
                                 generate_belonging_relations, \
                                 generate_cum_length, generate_correct_geometry,\
-                                generate_station_status\
-                                    ,generate_interpolation
+                                generate_station_status,\
+                                generate_interpolation, remove_negative_row_end
             
-from utils.time_utils import time_transfer
+from myutils.time_utils import time_transfer
+
+
+from datetime import datetime as dt
 
 import os
 
@@ -55,4 +58,13 @@ def process_routine(gpsdf, linedf, nidx:int, direction:int):
     routinedf = generate_correct_geometry(routinedf)
     routinedf = generate_interpolation(routinedf, linedf)
     routinedf = generate_station_status(routinedf)
+    return routinedf
+
+def post_process(routinedf, day:int):
+    routinedf = remove_negative_row_end(routinedf)
+    uplim = pd.Timestamp(dt(2021,9,day, hour=23,minute=59,second=59))
+    lolim = pd.Timestamp(dt(2021,9,day, hour=0,minute=0,second=0))
+    routinedf = routinedf.drop(routinedf.loc[(routinedf['time'] > uplim) | (routinedf['time'] < lolim)].index,
+                    axis = 0
+                ).reset_index(drop=True)
     return routinedf

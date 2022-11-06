@@ -193,11 +193,11 @@ def remove_negative_row_end(routinedf):
     pre_len = 0
     new_len = len(routinedf)
     while (new_len != pre_len):
+        routinedf['diff_distance'] = routinedf['cum_length'].diff()
         routinedf = routinedf.drop(
                     routinedf.loc[(routinedf["diff_distance"] < 0 )].index,
                     axis = 0
                 ).reset_index(drop=True)
-        routinedf['diff_distance'] = routinedf['cum_length'].diff()
         pre_len = new_len
         new_len = len(routinedf)
     return routinedf
