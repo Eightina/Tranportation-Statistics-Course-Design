@@ -273,6 +273,7 @@ def generate_interpolation(routinedf, linedf):
         routinedf = pd.concat([routinedf, inter_val],ignore_index=True).sort_values(by = 'time').reset_index(drop = True)
         routinedf['diff_time'] = routinedf['time'].diff().apply(lambda x: x.seconds)
         routinedf['diff_distance'] = routinedf['cum_length'].diff()
+        # routinedf[]
         routinedf = routinedf.drop(
                     routinedf.loc[(routinedf["diff_distance"] < 0 )].index,
                     axis = 0
@@ -283,20 +284,21 @@ def generate_interpolation(routinedf, linedf):
     return routinedf
 
 def in_station(routine_row):
-    is_low_velocity = (routine_row['velocity'] <= 12.5)
+    is_low_velocity_down = (routine_row['velocity'] <= 12.5)
+    is_low_velocity_up = (routine_row['velocity'] <= 6.8)
     is_up = (routine_row['direction'] == 0)
     case0 = (routine_row['cur_length'] > 25)
     case1 = (routine_row['selected_line'].length - routine_row['cur_length'] > 25)
     
     if is_up:
-        if (routine_row['start'] == '菊园车站') and (is_low_velocity):
+        if (routine_row['start'] == '菊园车站') and (is_low_velocity_up):
             return '菊园车站'
-        elif (routine_row['end'] == '公交嘉定新城站') and (is_low_velocity):
+        elif (routine_row['end'] == '公交嘉定新城站') and (is_low_velocity_up):
             return '公交嘉定新城站'
     else:
-        if (routine_row['start'] == '公交嘉定新城站') and (is_low_velocity):
+        if (routine_row['start'] == '公交嘉定新城站') and (is_low_velocity_down):
             return '公交嘉定新城站'
-        elif (routine_row['end'] == '菊园车站') and (is_low_velocity):
+        elif (routine_row['end'] == '菊园车站') and (is_low_velocity_down):
             return '菊园车站'
         
     if routine_row['start_is_station']:

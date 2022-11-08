@@ -69,13 +69,10 @@ def post_process(routinedf, date:int):
                 ).reset_index(drop=True)
     return routinedf
 
-def timetable_format(timetable_row, date:int, strict=True):
-    if strict:
-        lo_range = pd.Timedelta( minutes = 1 )
-        hi_range = pd.Timedelta( minutes = 2 )
-    else:
-        lo_range = pd.Timedelta( minutes = 1.5 )
-        hi_range = pd.Timedelta( minutes = 3 )
+def timetable_format(timetable_row, date:int, restriction:list):
+    # if strict:
+    lo_range = pd.Timedelta( minutes = restriction[0] )
+    hi_range = pd.Timedelta( minutes = restriction[1] )
         
     start_time = timetable_row['start_time'].split(':')
     start_time = pd.Timestamp(dt(2021,9,date, hour=int(start_time[0]),minute=int(start_time[1]),second=int(start_time[2])))
@@ -90,10 +87,10 @@ def timetable_format(timetable_row, date:int, strict=True):
     timetable_row['end_time_hilim'] = end_time + hi_range
     return timetable_row
 
-def process_timetable(timetabledf, date:int, strict=True):
+def process_timetable(timetabledf, date:int, restriction:list):
     timetabledf['start_time_lolim'] = [None for _ in range(len(timetabledf))]
     timetabledf['start_time_hilim'] = [None for _ in range(len(timetabledf))]
     timetabledf['end_time_lolim'] = [None for _ in range(len(timetabledf))]
     timetabledf['end_time_hilim'] = [None for _ in range(len(timetabledf))]
-    timetabledf = timetabledf.apply(timetable_format, args=(date, strict,), axis = 1)
+    timetabledf = timetabledf.apply(timetable_format, args=(date, restriction,), axis = 1)
     return timetabledf
