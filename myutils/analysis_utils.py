@@ -5,7 +5,7 @@ from myutils.process_utils import process_timetable
 import matplotlib.pyplot as plt
 from datetime import datetime as dt
 
-def load_daydf(day):
+def load_daydf(day:int):
     res = pd.read_pickle('./data/output/gps_{}.pkl'.format(day))
     # print(res.columns)
     # print(len(res))
