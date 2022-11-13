@@ -1,7 +1,7 @@
 /data/
 /reference/
 __pycache__
-
+*vscode/
 .docx
 .doc
 .csv
